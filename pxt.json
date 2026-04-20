@@ -1,27 +1,28 @@
 {
-    "name": "pxt-simx-sample",
-    "description": "",
+    "name": "pxt-calliope-smarthome",
+    "version": "0.0.1",
+    "description": "Erweiterung für das Digitale Welt Smarthome-Modell",
     "dependencies": {
         "core": "*",
-        "radio": "*",
-        "microphone": "*"
+        "v3": "*",
+        "neopixel-ble": "github:calliope-edu/neopixel-ble#f68262b7ed280b3996f75ef1d39a5c6b040053cf",
+        "vl53l0x-distance": "github:tinkertanker/pxt-range-vl53l0x#v1.0.1"
     },
     "files": [
         "main.blocks",
         "main.ts",
         "README.md",
-        "custom.ts"
+        "smarthome.ts"
     ],
     "testFiles": [
         "test.ts"
     ],
     "targetVersions": {
-        "target": "7.0.42",
-        "targetId": "microbit"
+        "target": "7.0.3",
+        "targetId": "calliopemini"
     },
     "supportedTargets": [
-        "microbit"
+        "calliopemini"
     ],
-    "preferredEditor": "tsprj",
-    "version": "0.0.2"
+    "preferredEditor": "tsprj"
 }
