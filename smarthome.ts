@@ -85,6 +85,7 @@ namespace smarthome {
 
     interface PresenceDetector {
         lastPresenceDetection: boolean
+        enabled: boolean
     }
 
     let touchController: TouchController
@@ -625,10 +626,13 @@ namespace smarthome {
 
         presenceDetector = {
             lastPresenceDetection: false,
+            enabled: false,
         }
 
-        Rangefinder.init()
-        control.inBackground(detectAndNotifyPresenceDetector)
+        presenceDetector.enabled = Rangefinder.init()
+        if (presenceDetector.enabled) {
+            control.inBackground(detectAndNotifyPresenceDetector)
+        }
     }
 
     function detectAndNotifyPresenceDetector() {
@@ -636,13 +640,6 @@ namespace smarthome {
         let distance = Rangefinder.distance()
 
         if (distance == 0) {
-            for (let index = 0; index < 3; index++) {
-                basic.setLedColors(0xff0000, 0x000000, 0xff0000)
-                basic.pause(200)
-                basic.setLedColors(0x000000, 0x000000, 0x000000)
-                basic.pause(200)
-            }
-
             return
         } else {
             const startDistance = distance
@@ -849,4 +846,396 @@ namespace smarthome {
 
     registerSimx()
     initializeSmarthome()
+}
+
+// Rangefinder code adapted from pxt-range-vl53l0x
+// Source: https://github.com/tinkertanker/pxt-range-vl53l0x
+// License: MIT
+// Copyright (c) tinkertanker and contributors
+namespace Rangefinder {
+    let i2cAddr = 0x29
+    let IO_TIMEOUT = 1000
+    let SYSRANGE_START = 0x00
+    let EXTSUP_HV = 0x89
+    let MSRC_CONFIG = 0x60
+    let FINAL_RATE_RTN_LIMIT = 0x44
+    let SYSTEM_SEQUENCE = 0x01
+    let SPAD_REF_START = 0x4f
+    let SPAD_ENABLES = 0xb0
+    let REF_EN_START_SELECT = 0xb6
+    let SPAD_NUM_REQUESTED = 0x4e
+    let INTERRUPT_GPIO = 0x0a
+    let INTERRUPT_CLEAR = 0x0b
+    let GPIO_MUX_ACTIVE_HIGH = 0x84
+    let RESULT_INTERRUPT_STATUS = 0x13
+    let RESULT_RANGE_STATUS = 0x14
+    let OSC_CALIBRATE = 0xf8
+    let MEASURE_PERIOD = 0x04
+
+    let started = false
+    let initialized = false
+    let stopVariable = 0
+    let spadCount = 0
+    let isAperture = false
+    let spadMap: number[] = [0, 0, 0, 0, 0, 0]
+
+    function readReg(registerAddress: number): number {
+        pins.i2cWriteNumber(i2cAddr, registerAddress, NumberFormat.UInt8BE, false)
+        return pins.i2cReadNumber(i2cAddr, NumberFormat.UInt8BE, false)
+    }
+
+    function readReg16(registerAddress: number): number {
+        pins.i2cWriteNumber(i2cAddr, registerAddress, NumberFormat.UInt8BE, false)
+        return pins.i2cReadNumber(i2cAddr, NumberFormat.UInt16BE, false)
+    }
+
+    function writeReg(registerAddress: number, data: number): void {
+        pins.i2cWriteNumber(i2cAddr, (registerAddress << 8) + data, NumberFormat.UInt16BE, false)
+    }
+
+    function writeReg16(registerAddress: number, data: number): void {
+        pins.i2cWriteNumber(i2cAddr, registerAddress, NumberFormat.UInt8BE, false)
+        pins.i2cWriteNumber(i2cAddr, data, NumberFormat.UInt16BE, false)
+    }
+
+    function readFlag(registerAddress: number = 0x00, bit: number = 0): number {
+        const data = readReg(registerAddress)
+        const mask = 1 << bit
+        return data & mask
+    }
+
+    function writeFlag(registerAddress: number = 0x00, bit: number = 0, onFlag: boolean): void {
+        let data = readReg(registerAddress)
+        const mask = 1 << bit
+        if (onFlag) {
+            data |= mask
+        } else {
+            data &= ~mask
+        }
+
+        writeReg(registerAddress, data)
+    }
+
+    /**
+     * Initialises the rangefinder.
+     */
+    //% block="initialise"
+    //% blockId=ranger_init
+    export function init(): boolean {
+        initialized = false
+
+        const registerC0 = readReg(0xc0)
+        const registerC1 = readReg(0xc1)
+        const registerC2 = readReg(0xc2)
+
+        if (registerC0 != 0xee || registerC1 != 0xaa || registerC2 != 0x10) {
+            return false
+        }
+
+        const power2v8 = true
+        writeFlag(EXTSUP_HV, 0, power2v8)
+
+        writeReg(0x88, 0x00)
+        writeReg(0x80, 0x01)
+        writeReg(0xff, 0x01)
+        writeReg(0x00, 0x00)
+        stopVariable = readReg(0x91)
+        writeReg(0x00, 0x01)
+        writeReg(0xff, 0x00)
+        writeReg(0x80, 0x00)
+
+        writeFlag(MSRC_CONFIG, 1, true)
+        writeFlag(MSRC_CONFIG, 4, true)
+
+        writeReg16(FINAL_RATE_RTN_LIMIT, Math.floor(0.25 * (1 << 7)))
+        writeReg(SYSTEM_SEQUENCE, 0xff)
+
+        if (!spadInfo()) {
+            return false
+        }
+
+        pins.i2cWriteNumber(i2cAddr, SPAD_ENABLES, NumberFormat.UInt8BE, false)
+        const spad1 = pins.i2cReadNumber(i2cAddr, NumberFormat.UInt16BE, false)
+        const spad2 = pins.i2cReadNumber(i2cAddr, NumberFormat.UInt16BE, false)
+        const spad3 = pins.i2cReadNumber(i2cAddr, NumberFormat.UInt16BE, false)
+        spadMap[0] = (spad1 >> 8) & 0xff
+        spadMap[1] = spad1 & 0xff
+        spadMap[2] = (spad2 >> 8) & 0xff
+        spadMap[3] = spad2 & 0xff
+        spadMap[4] = (spad3 >> 8) & 0xff
+        spadMap[5] = spad3 & 0xff
+
+        writeReg(0xff, 0x01)
+        writeReg(SPAD_REF_START, 0x00)
+        writeReg(SPAD_NUM_REQUESTED, 0x2c)
+        writeReg(0xff, 0x00)
+        writeReg(REF_EN_START_SELECT, 0xb4)
+
+        let spadsEnabled = 0
+        for (let index = 0; index < 48; index++) {
+            if ((index < 12 && isAperture) || (spadsEnabled >= spadCount)) {
+                spadMap[index >> 3] &= ~(1 << (index >> 2))
+            } else if (spadMap[index >> 3] & (1 << (index >> 2))) {
+                spadsEnabled += 1
+            }
+        }
+
+        writeReg(0xff, 0x01)
+        writeReg(0x00, 0x00)
+
+        writeReg(0xff, 0x00)
+        writeReg(0x09, 0x00)
+        writeReg(0x10, 0x00)
+        writeReg(0x11, 0x00)
+        writeReg(0x24, 0x01)
+        writeReg(0x25, 0xff)
+        writeReg(0x75, 0x00)
+
+        writeReg(0xff, 0x01)
+        writeReg(0x4e, 0x2c)
+        writeReg(0x48, 0x00)
+        writeReg(0x30, 0x20)
+
+        writeReg(0xff, 0x00)
+        writeReg(0x30, 0x09)
+        writeReg(0x54, 0x00)
+        writeReg(0x31, 0x04)
+        writeReg(0x32, 0x03)
+        writeReg(0x40, 0x83)
+        writeReg(0x46, 0x25)
+        writeReg(0x60, 0x00)
+        writeReg(0x27, 0x00)
+        writeReg(0x50, 0x06)
+        writeReg(0x51, 0x00)
+        writeReg(0x52, 0x96)
+        writeReg(0x56, 0x08)
+        writeReg(0x57, 0x30)
+        writeReg(0x61, 0x00)
+        writeReg(0x62, 0x00)
+        writeReg(0x64, 0x00)
+        writeReg(0x65, 0x00)
+        writeReg(0x66, 0xa0)
+
+        writeReg(0xff, 0x01)
+        writeReg(0x22, 0x32)
+        writeReg(0x47, 0x14)
+        writeReg(0x49, 0xff)
+        writeReg(0x4a, 0x00)
+
+        writeReg(0xff, 0x00)
+        writeReg(0x7a, 0x0a)
+        writeReg(0x7b, 0x00)
+        writeReg(0x78, 0x21)
+
+        writeReg(0xff, 0x01)
+        writeReg(0x23, 0x34)
+        writeReg(0x42, 0x00)
+        writeReg(0x44, 0xff)
+        writeReg(0x45, 0x26)
+        writeReg(0x46, 0x05)
+        writeReg(0x40, 0x40)
+        writeReg(0x0e, 0x06)
+        writeReg(0x20, 0x1a)
+        writeReg(0x43, 0x40)
+
+        writeReg(0xff, 0x00)
+        writeReg(0x34, 0x03)
+        writeReg(0x35, 0x44)
+
+        writeReg(0xff, 0x01)
+        writeReg(0x31, 0x04)
+        writeReg(0x4b, 0x09)
+        writeReg(0x4c, 0x05)
+        writeReg(0x4d, 0x04)
+
+        writeReg(0xff, 0x00)
+        writeReg(0x44, 0x00)
+        writeReg(0x45, 0x20)
+        writeReg(0x47, 0x08)
+        writeReg(0x48, 0x28)
+        writeReg(0x67, 0x00)
+        writeReg(0x70, 0x04)
+        writeReg(0x71, 0x01)
+        writeReg(0x72, 0xfe)
+        writeReg(0x76, 0x00)
+        writeReg(0x77, 0x00)
+
+        writeReg(0xff, 0x01)
+        writeReg(0x0d, 0x01)
+
+        writeReg(0xff, 0x00)
+        writeReg(0x80, 0x01)
+        writeReg(0x01, 0xf8)
+
+        writeReg(0xff, 0x01)
+        writeReg(0x8e, 0x01)
+        writeReg(0x00, 0x01)
+        writeReg(0xff, 0x00)
+        writeReg(0x80, 0x00)
+
+        writeReg(INTERRUPT_GPIO, 0x04)
+        writeFlag(GPIO_MUX_ACTIVE_HIGH, 4, false)
+        writeReg(INTERRUPT_CLEAR, 0x01)
+
+        writeReg(SYSTEM_SEQUENCE, 0x01)
+        if (!calibrate(0x40)) {
+            return false
+        }
+
+        writeReg(SYSTEM_SEQUENCE, 0x02)
+        if (!calibrate(0x00)) {
+            return false
+        }
+
+        writeReg(SYSTEM_SEQUENCE, 0xe8)
+        initialized = true
+        return true
+    }
+
+    function spadInfo(): boolean {
+        writeReg(0x80, 0x01)
+        writeReg(0xff, 0x01)
+        writeReg(0x00, 0x00)
+        writeReg(0xff, 0x06)
+        writeFlag(0x83, 3, true)
+        writeReg(0xff, 0x07)
+        writeReg(0x81, 0x01)
+        writeReg(0x80, 0x01)
+        writeReg(0x94, 0x6b)
+        writeReg(0x83, 0x00)
+
+        let timeout = 0
+        while (readReg(0x83) == 0) {
+            timeout += 1
+            basic.pause(1)
+            if (timeout == IO_TIMEOUT) {
+                return false
+            }
+        }
+
+        writeReg(0x83, 0x01)
+        const value = readReg(0x92)
+        writeReg(0x81, 0x00)
+        writeReg(0xff, 0x06)
+        writeFlag(0x83, 3, false)
+        writeReg(0xff, 0x01)
+        writeReg(0x00, 0x01)
+        writeReg(0xff, 0x00)
+        writeReg(0x80, 0x00)
+
+        spadCount = value & 0x7f
+        isAperture = (value & 0b10000000) == 0b10000000
+        return true
+    }
+
+    function calibrate(value: number): boolean {
+        writeReg(SYSRANGE_START, 0x01 | value)
+        let timeout = 0
+        while ((readReg(RESULT_INTERRUPT_STATUS) & 0x07) == 0) {
+            timeout += 1
+            basic.pause(1)
+            if (timeout == IO_TIMEOUT) {
+                return false
+            }
+        }
+
+        writeReg(INTERRUPT_CLEAR, 0x01)
+        writeReg(SYSRANGE_START, 0x00)
+        return true
+    }
+
+    function startContinuous(period: number = 0): void {
+        writeReg(0x80, 0x01)
+        writeReg(0xff, 0x01)
+        writeReg(0x00, 0x00)
+        writeReg(0x91, stopVariable)
+        writeReg(0x00, 0x01)
+        writeReg(0xff, 0x00)
+        writeReg(0x80, 0x00)
+
+        let oscillator = 0
+        if (period) {
+            oscillator = readReg16(OSC_CALIBRATE)
+        }
+
+        if (oscillator) {
+            period *= oscillator
+            writeReg16(MEASURE_PERIOD, (period >> 16) & 0xffff)
+            pins.i2cWriteNumber(i2cAddr, period & 0xffff, NumberFormat.UInt16BE, false)
+            writeReg(SYSRANGE_START, 0x04)
+        } else {
+            writeReg(SYSRANGE_START, 0x02)
+        }
+
+        started = true
+    }
+
+    function stopContinuous(): void {
+        writeReg(SYSRANGE_START, 0x01)
+        writeReg(0xff, 0x01)
+        writeReg(0x00, 0x00)
+        writeReg(0x91, stopVariable)
+        writeReg(0x00, 0x01)
+        writeReg(0xff, 0x00)
+        started = false
+    }
+
+    function readContinuousDistance(): number {
+        let timeout = 0
+        while ((readReg(RESULT_INTERRUPT_STATUS) & 0x07) == 0) {
+            timeout += 1
+            basic.pause(1)
+            if (timeout == IO_TIMEOUT) {
+                return 0
+            }
+        }
+
+        const value = readReg16(RESULT_RANGE_STATUS + 10)
+        writeReg(INTERRUPT_CLEAR, 0x01)
+        return value
+    }
+
+    /**
+     * Returns the distance detected by the rangefinder (in mm).
+     */
+    //% block="distance (in mm)"
+    //% blockId=ranger_dist_mm
+    export function distance(): number {
+        if (!initialized) {
+            return 0
+        }
+
+        let timeout = 0
+        if (!started) {
+            writeReg(0x80, 0x01)
+            writeReg(0xff, 0x01)
+            writeReg(0x00, 0x00)
+            writeReg(0x91, stopVariable)
+            writeReg(0x00, 0x01)
+            writeReg(0xff, 0x00)
+            writeReg(0x80, 0x00)
+            writeReg(SYSRANGE_START, 0x01)
+
+            while (readReg(SYSRANGE_START) & 0x01) {
+                timeout += 1
+                basic.pause(1)
+                if (timeout == IO_TIMEOUT) {
+                    return 0
+                }
+            }
+        }
+
+        timeout = 0
+        while ((readReg(RESULT_INTERRUPT_STATUS) & 0x07) == 0) {
+            timeout += 1
+            basic.pause(1)
+            if (timeout == IO_TIMEOUT) {
+                return 0
+            }
+        }
+
+        const value = readReg16(RESULT_RANGE_STATUS + 10)
+        writeReg(INTERRUPT_CLEAR, 0x01)
+        return value
+    }
 }
