@@ -1,5 +1,5 @@
 // A Calliope MakeCode extension for a custom-built smarthome model
-// Theo-Koch-Schule Gruenberg 2024
+// Theo-Koch-Schule Gruenberg 2024-2026
 // MIT License
 
 //% weight=2 color=#AA278D icon="\uf015" block="Smarthome"
@@ -230,6 +230,26 @@ namespace smarthome {
             version: SIMX_PROTOCOL_VERSION,
             type: "hello"
         })
+        syncSimulatorState()
+    }
+
+    function initializeSmarthome() {
+        ensureLightsInitialized()
+
+        motors.dualMotorPower(Motor.M0, 0)
+        airConditioningOn = false
+
+        lightStrip.clear()
+        lightStrip.show()
+        lampStates = [false, false, false, false]
+        lampColors = [0x000000, 0x000000, 0x000000]
+        wallLightColors = [0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000]
+
+        pins.servoWritePin(AnalogPin.C16, 0)
+        basic.pause(800)
+        pins.servoSetPulse(AnalogPin.C16, 0)
+        shadesOpen = true
+
         syncSimulatorState()
     }
 
@@ -832,4 +852,5 @@ namespace smarthome {
     }
 
     registerSimx()
+    initializeSmarthome()
 }
