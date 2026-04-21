@@ -66,6 +66,8 @@ namespace smarthome {
     let shadesOpen = true
     let airConditioningOn = false
     let lampStates = [false, false, false, false]
+    let lampColors = [0x000000, 0x000000, 0x000000]
+    let wallLightColors = [0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000]
 
     let lightStrip: neopixel.Strip
     let wallLamp: neopixel.Strip
@@ -98,6 +100,8 @@ namespace smarthome {
         type: "state"
         payload: {
             lamps: boolean[]
+            lampColors: number[]
+            wallLightColors: number[]
             shadesOpen: boolean
             airConditioningOn: boolean
         }
@@ -136,6 +140,21 @@ namespace smarthome {
                     lampStates[1],
                     lampStates[2],
                     lampStates[3]
+                ],
+                lampColors: [
+                    lampColors[0],
+                    lampColors[1],
+                    lampColors[2]
+                ],
+                wallLightColors: [
+                    wallLightColors[0],
+                    wallLightColors[1],
+                    wallLightColors[2],
+                    wallLightColors[3],
+                    wallLightColors[4],
+                    wallLightColors[5],
+                    wallLightColors[6],
+                    wallLightColors[7]
                 ],
                 shadesOpen: shadesOpen,
                 airConditioningOn: airConditioningOn
@@ -340,6 +359,16 @@ namespace smarthome {
         lightStrip.setPixelColor(8, color6)
         lightStrip.setPixelColor(9, color7)
         lightStrip.setPixelColor(10, color8)
+
+        wallLightColors[0] = color1
+        wallLightColors[1] = color2
+        wallLightColors[2] = color3
+        wallLightColors[3] = color4
+        wallLightColors[4] = color5
+        wallLightColors[5] = color6
+        wallLightColors[6] = color7
+        wallLightColors[7] = color8
+
         lightStrip.show()
         lightStrip.setBrightness(255)
 
@@ -370,10 +399,19 @@ namespace smarthome {
         if (lamp < 3) {
             lightStrip.setPixelColor(lamp, color)
             lampStates[lamp] = color != 0x000000
+            lampColors[lamp] = color
         } else {
             wallLamp.setBrightness(20)
             wallLamp.showColor(color)
             lampStates[3] = color != 0x000000
+            wallLightColors[0] = color
+            wallLightColors[1] = color
+            wallLightColors[2] = color
+            wallLightColors[3] = color
+            wallLightColors[4] = color
+            wallLightColors[5] = color
+            wallLightColors[6] = color
+            wallLightColors[7] = color
         }
 
         lightStrip.show()
@@ -393,8 +431,17 @@ namespace smarthome {
 
         if (lamp < 3) {
             lightStrip.setPixelColor(lamp, 0x000000)
+            lampColors[lamp] = 0x000000
         } else {
             wallLamp.showColor(0x000000)
+            wallLightColors[0] = 0x000000
+            wallLightColors[1] = 0x000000
+            wallLightColors[2] = 0x000000
+            wallLightColors[3] = 0x000000
+            wallLightColors[4] = 0x000000
+            wallLightColors[5] = 0x000000
+            wallLightColors[6] = 0x000000
+            wallLightColors[7] = 0x000000
         }
 
         lampStates[lamp] = false
