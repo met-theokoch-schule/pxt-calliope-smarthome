@@ -636,18 +636,14 @@ namespace smarthome {
         let distance = Rangefinder.distance()
 
         if (distance == 0) {
-            while (true) {
-                if (!previousPresenceStatus && pins.digitalReadPin(DigitalPin.C9) == 0) {
-                    control.raiseEvent(PRESENCE_DETECTED_ID, 0)
-                    previousPresenceStatus = true
-                }
-
-                if (previousPresenceStatus && pins.digitalReadPin(DigitalPin.C9) == 1) {
-                    previousPresenceStatus = false
-                }
-
-                basic.pause(TOUCH_STATUS_PAUSE_BETWEEN_READ)
+            for (let index = 0; index < 3; index++) {
+                basic.setLedColors(0xff0000, 0x000000, 0xff0000)
+                basic.pause(200)
+                basic.setLedColors(0x000000, 0x000000, 0x000000)
+                basic.pause(200)
             }
+
+            return
         } else {
             const startDistance = distance
             let previousPresenceTime = control.millis()
