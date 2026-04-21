@@ -10,21 +10,62 @@
     overflow: hidden;
 }
 
-.scene {
-    position: relative;
-    flex: 1 1 auto;
+.scene-shell {
+    flex: 1;
     min-height: 0;
     width: 100%;
-    max-width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.scene {
+    position: relative;
+    width: min(100%, 1200px);
     aspect-ratio: 1670 / 980;
     overflow: hidden;
     background: transparent;
 }
 
 .scene-layer {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: contain;
+}
+
+.scene-layer-base {
+    z-index: 2;
+}
+
+.scene-layer-rolladen {
+    opacity: 1;
+    transform-origin: 48.7% 60.9%;
+    transform: rotate(0deg);
+    transition: transform 640ms ease;
+    z-index: 1;
+}
+
+.scene-layer-rolladen.is-visible {
+    transform: rotate(-180deg);
+}
+
+.scene-overlays {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 4;
+}
+
+.scene-overlays-light {
+    mix-blend-mode: screen;
+}
+
+.scene-overlays-mask {
+    mix-blend-mode: normal;
 }
 
 .controls {
