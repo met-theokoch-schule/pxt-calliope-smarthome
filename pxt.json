@@ -5,8 +5,7 @@
     "dependencies": {
         "core": "*",
         "v3": "*",
-        "neopixel-ble": "github:calliope-edu/neopixel-ble#f68262b7ed280b3996f75ef1d39a5c6b040053cf",
-        "vl53l0x-distance": "github:tinkertanker/pxt-range-vl53l0x#v1.0.1"
+        "neopixel-ble": "github:calliope-edu/neopixel-ble#f68262b7ed280b3996f75ef1d39a5c6b040053cf"
     },
     "files": [
         "main.blocks",
