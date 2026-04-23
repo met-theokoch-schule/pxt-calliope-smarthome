@@ -1,6 +1,6 @@
 # Calliope Smarthome
 
-Diese MakeCode-Erweiterung steuert ein Smarthome-Modell der Theo-Koch-Schule Grünberg. Sie stellt Blöcke für Rolladen, Klimaanlage, Lampen, Wandlampen-LEDs, Touch-Schalter und Präsenzmeldung bereit. Die Erweiterung enthält außerdem eine Simulator-Erweiterung im Ordner `simx`, damit die Zustände des Modells in MakeCode sichtbar und bedienbar sind.
+Diese MakeCode-Erweiterung steuert ein Smarthome-Modell der Theo-Koch-Schule Grünberg. Sie stellt Blöcke für Rolladen, Klimaanlage, Lampen, Wandlampen-LEDs, Touch-Schalter und Präsenzmeldung bereit.
 
 ## Als Erweiterung verwenden
 
@@ -10,15 +10,6 @@ Dieses Repository kann in MakeCode als Erweiterung importiert werden.
 - ein neues Projekt erstellen
 - Erweiterungen öffnen
 - nach `https://github.com/met-theokoch-schule/pxt-calliope-smarthome` suchen und importieren
-
-## Dieses Projekt bearbeiten
-
-Zum Bearbeiten kann das Repository direkt in MakeCode importiert werden.
-
-- `https://makecode.calliope.cc/` öffnen
-- Importieren auswählen
-- GitHub-URL `https://github.com/met-theokoch-schule/pxt-calliope-smarthome` einfügen
-- Projekt importieren
 
 ## Hardware
 
