@@ -1,15 +1,24 @@
 # Calliope Smarthome
 
-Diese MakeCode-Erweiterung steuert ein Smarthome-Modell der Theo-Koch-Schule Grünberg. Sie stellt Blöcke fuer Rolladen, Klimaanlage, Lampen, Wandlampen-LEDs, Touch-Schalter und Präsenzmeldung bereit. Die Erweiterung enthält ausserdem eine Simulator-Erweiterung im Ordner `simx`, damit die Zustände des Modells in MakeCode sichtbar und bedienbar sind.
+Diese MakeCode-Erweiterung steuert ein Smarthome-Modell der Theo-Koch-Schule Grünberg. Sie stellt Blöcke für Rolladen, Klimaanlage, Lampen, Wandlampen-LEDs, Touch-Schalter und Präsenzmeldung bereit. Die Erweiterung enthält außerdem eine Simulator-Erweiterung im Ordner `simx`, damit die Zustände des Modells in MakeCode sichtbar und bedienbar sind.
 
 ## Als Erweiterung verwenden
 
 Dieses Repository kann in MakeCode als Erweiterung importiert werden.
 
-- `https://makecode.calliope.cc/` oeffnen
+- `https://makecode.calliope.cc/` öffnen
 - ein neues Projekt erstellen
-- Erweiterungen oeffnen
+- Erweiterungen öffnen
 - nach `https://github.com/met-theokoch-schule/pxt-calliope-smarthome` suchen und importieren
+
+## Dieses Projekt bearbeiten
+
+Zum Bearbeiten kann das Repository direkt in MakeCode importiert werden.
+
+- `https://makecode.calliope.cc/` öffnen
+- Importieren auswählen
+- GitHub-URL `https://github.com/met-theokoch-schule/pxt-calliope-smarthome` einfügen
+- Projekt importieren
 
 ## Blocks Preview
 
@@ -17,22 +26,22 @@ Die Blocks-Vorschau wird auf GitHub Pages durch den MakeCode-Renderer am Ende di
 
 ## Hardware
 
-Die Erweiterung ist fuer den Calliope mini mit dem Smarthome-Modell ausgelegt. Eine Anleitung zum Bau findet sich unter http://theokoch.schule/dw/smarthome - dort finden sich auch die 3D Druckdateien und eine Gerber-Datei.
+Die Erweiterung ist für den Calliope mini mit dem Smarthome-Modell ausgelegt. Eine Anleitung zum Bau findet sich unter http://theokoch.schule/dw/smarthome - dort finden sich auch die 3D-Druckdateien und eine Gerber-Datei.
 
 - Rolladen: Servo an `C16`
 - Klimaanlage: Motor `M0`
 - Lampen: NeoPixel-Streifen an `C8`
 - Wandlampe: NeoPixel 3 bis 10 des Streifens, als LED 1 bis 8 angesprochen
 - Schalter `S0` bis `S9`: MPR121-Touchcontroller an I2C-Adresse `0x5a`
-- Praesenzsensor: VL53L0X-Rangefinder
+- Präsenzsensor: VL53L0X-Rangefinder
 
-## Bloecke
+## Blöcke
 
 ### Rolladen
 
 #### `Rolladen öffnen/schließen`
 
-Oeffnet oder schliesst den Rolladen.
+Öffnet oder schließt den Rolladen.
 
 ```typescript
 smarthome.switchShades(smarthome.ShadeState.Open)
@@ -42,7 +51,7 @@ smarthome.switchShades(smarthome.ShadeState.Close)
 
 #### `Rolladen ist offen`
 
-Gibt `true` zurueck, wenn der Rolladen als offen gespeichert ist.
+Gibt `true` zurück, wenn der Rolladen als offen gespeichert ist.
 
 ```typescript
 if (smarthome.getShadesStatus()) {
@@ -72,7 +81,7 @@ smarthome.setAirConditioningPower(60)
 
 #### `Klimaanlage ist an`
 
-Gibt `true` zurueck, wenn die Klimaanlage als eingeschaltet gespeichert ist.
+Gibt `true` zurück, wenn die Klimaanlage als eingeschaltet gespeichert ist.
 
 ```typescript
 if (smarthome.getAirConditioningStatus()) {
@@ -103,7 +112,7 @@ smarthome.switchLampOff(smarthome.LampName.WallLamp)
 
 #### `... ist an`
 
-Gibt `true` zurueck, wenn die ausgewaehlte Lampe als eingeschaltet gespeichert ist.
+Gibt `true` zurück, wenn die ausgewählte Lampe als eingeschaltet gespeichert ist.
 
 ```typescript
 if (smarthome.getLampStatus(smarthome.LampName.OutsideLamp)) {
@@ -132,7 +141,7 @@ smarthome.showWallLampColorPixel(
 
 #### `setze Wandlampe LED ... auf ...`
 
-Setzt eine einzelne Wandlampen-LED auf eine Farbe. Dieser Block liegt unter `Mehr`, weil er als `advanced` markiert ist. Die LED-Nummer ist fuer Variablen und Schleifen gedacht; gueltig sind LED `1` bis `8`. Kleinere oder groessere Werte werden automatisch auf diesen Bereich begrenzt.
+Setzt eine einzelne Wandlampen-LED auf eine Farbe. Dieser Block liegt unter `Mehr`, weil er als `advanced` markiert ist. Die LED-Nummer ist für Variablen und Schleifen gedacht; gültig sind LED `1` bis `8`. Kleinere oder größere Werte werden automatisch auf diesen Bereich begrenzt.
 
 ```typescript
 for (let led = 1; led <= 8; led++) {
@@ -145,7 +154,7 @@ for (let led = 1; led <= 8; led++) {
 
 #### `wenn Schalter ... gedrückt`
 
-Fuehrt Code aus, sobald ein Touch-Schalter `S0` bis `S9` gedrueckt wird. Dieser Block unterscheidet nicht zwischen kurzem und langem Druck.
+Führt Code aus, sobald ein Touch-Schalter `S0` bis `S9` gedrückt wird. Dieser Block unterscheidet nicht zwischen kurzem und langem Druck.
 
 ```typescript
 smarthome.onTouchSensorTouched(smarthome.TouchSwitch.S0, function () {
@@ -155,7 +164,7 @@ smarthome.onTouchSensorTouched(smarthome.TouchSwitch.S0, function () {
 
 #### `wenn Schalter ... kurz/lang gedrückt`
 
-Fuehrt Code aus, wenn ein Touch-Schalter kurz oder lang gedrueckt wurde. Dieser Block liegt unter `Mehr`, weil er als `advanced` markiert ist. Ein langer Druck wird nach mindestens `750 ms` Halten ausgeloest. Ein kurzer Druck wird beim Loslassen ausgeloest, wenn vorher kein langer Druck erkannt wurde.
+Führt Code aus, wenn ein Touch-Schalter kurz oder lang gedrückt wurde. Dieser Block liegt unter `Mehr`, weil er als `advanced` markiert ist. Ein langer Druck wird nach mindestens `750 ms` Halten ausgelöst. Ein kurzer Druck wird beim Loslassen ausgelöst, wenn vorher kein langer Druck erkannt wurde.
 
 ```typescript
 smarthome.onTouchSensorPressed(smarthome.TouchSwitch.S1, smarthome.TouchPressType.Short, function () {
@@ -167,11 +176,11 @@ smarthome.onTouchSensorPressed(smarthome.TouchSwitch.S1, smarthome.TouchPressTyp
 })
 ```
 
-### Praesenz
+### Präsenz
 
 #### `wenn Präsenz gemeldet`
 
-Fuehrt Code aus, wenn der Praesenzsensor eine Bewegung beziehungsweise Annaeherung erkennt. In der Simulation kann die Praesenzmeldung ueber die Praesenz-Schaltflaeche ausgeloest werden.
+Führt Code aus, wenn der Präsenzsensor eine Bewegung beziehungsweise Annäherung erkennt. In der Simulation kann die Präsenzmeldung über die Präsenz-Schaltfläche ausgelöst werden.
 
 ```typescript
 smarthome.onPresenceDetected(function () {
@@ -182,7 +191,7 @@ smarthome.onPresenceDetected(function () {
 
 ## Simulator
 
-Die Simulator-Erweiterung befindet sich in `simx`. Sie synchronisiert den Zustand der Lampen, Wandlampen-LEDs, des Rolladens und der Klimaanlage mit MakeCode. Die Schalter `S0` bis `S9` und die Praesenzmeldung koennen in der Simulation ausgelöst werden. Die neuen Kurz-/Langdruck-Bloecke arbeiten mit den bestehenden `press`- und `release`-Nachrichten der Simulation.
+Die Simulator-Erweiterung befindet sich in `simx`. Sie synchronisiert den Zustand der Lampen, Wandlampen-LEDs, des Rolladens und der Klimaanlage mit MakeCode. Die Schalter `S0` bis `S9` und die Präsenzmeldung können in der Simulation ausgelöst werden. Die neuen Kurz-/Langdruck-Blöcke arbeiten mit den bestehenden `press`- und `release`-Nachrichten der Simulation.
 
 ## Lizenz
 
