@@ -502,7 +502,7 @@ namespace smarthome {
     //% block="set wall lamp LED $led to $color"
     //% block.loc.de="setze Wandlampe LED $led auf $color"
     //% led.shadow=math_number led.defl=0 led.min=0 led.max=7
-    //% color.shadow="smarthome_color_number_picker" color.defl=0xffffff
+    //% color.shadow="smarthome_color_number_picker" color.defl=#ff00ff
     //% inlineInputMode=inline
     //% advanced=true
     export function setWallLampLedColor(led: number, color: number) {
