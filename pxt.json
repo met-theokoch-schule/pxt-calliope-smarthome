@@ -1,7 +1,7 @@
 {
     "name": "pxt-calliope-smarthome",
     "version": "0.0.1",
-    "description": "Erweiterung für das Digitale Welt Smarthome-Modell",
+    "description": "Erweiterung für das Digitale Welt Calliope Smarthome-Modell",
     "dependencies": {
         "core": "*",
         "v3": "*",
