@@ -20,10 +20,6 @@ Zum Bearbeiten kann das Repository direkt in MakeCode importiert werden.
 - GitHub-URL `https://github.com/met-theokoch-schule/pxt-calliope-smarthome` einfügen
 - Projekt importieren
 
-## Blocks Preview
-
-Die Blocks-Vorschau wird auf GitHub Pages durch den MakeCode-Renderer am Ende dieser README erzeugt. Nach neuen Commits kann die Aktualisierung einige Minuten dauern.
-
 ## Hardware
 
 Die Erweiterung ist für den Calliope mini mit dem Smarthome-Modell ausgelegt. Eine Anleitung zum Bau findet sich unter http://theokoch.schule/dw/smarthome - dort finden sich auch die 3D-Druckdateien und eine Gerber-Datei.
@@ -191,7 +187,7 @@ smarthome.onPresenceDetected(function () {
 
 ## Simulator
 
-Die Simulator-Erweiterung befindet sich in `simx`. Sie synchronisiert den Zustand der Lampen, Wandlampen-LEDs, des Rolladens und der Klimaanlage mit MakeCode. Die Schalter `S0` bis `S9` und die Präsenzmeldung können in der Simulation ausgelöst werden. Die neuen Kurz-/Langdruck-Blöcke arbeiten mit den bestehenden `press`- und `release`-Nachrichten der Simulation.
+Die Simulator-Erweiterung synchronisiert den Zustand der Lampen, Wandlampen-LEDs, des Rolladens und der Klimaanlage mit MakeCode. Die Schalter `S0` bis `S9` und die Präsenzmeldung können in der Simulation ausgelöst werden. 
 
 ## Lizenz
 
