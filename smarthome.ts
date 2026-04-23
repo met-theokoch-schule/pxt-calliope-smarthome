@@ -501,7 +501,7 @@ namespace smarthome {
     //% blockId=smarthome_set_wall_lamp_led_color
     //% block="set wall lamp LED $led to $color"
     //% block.loc.de="setze Wandlampe LED $led auf $color"
-    //% led.shadow=math_number led.defl=1 led.min=1 led.max=8
+    //% led.shadow=math_number led.defl=0 led.min=0 led.max=7
     //% color.shadow="smarthome_color_number_picker" color.defl=0xffffff
     //% inlineInputMode=inline
     //% advanced=true
@@ -509,14 +509,14 @@ namespace smarthome {
         ensureLightsInitialized()
 
         led = Math.round(led)
-        if (led < 1) {
-            led = 1
+        if (led < 0) {
+            led = 0
         }
-        if (led > 8) {
-            led = 8
+        if (led > 7) {
+            led = 7
         }
 
-        const wallLightIndex = led - 1
+        const wallLightIndex = led
         lightStrip.setBrightness(20)
         lightStrip.setPixelColor(wallLightIndex + 3, color)
         wallLightColors[wallLightIndex] = color
