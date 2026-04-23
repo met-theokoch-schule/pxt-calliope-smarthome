@@ -1059,8 +1059,6 @@ namespace Rangefinder {
     /**
      * Initialises the rangefinder.
      */
-    //% block="initialise"
-    //% blockId=ranger_init
     export function init(): boolean {
         initialized = false
 
@@ -1338,8 +1336,6 @@ namespace Rangefinder {
     /**
      * Returns the distance detected by the rangefinder (in mm).
      */
-    //% block="distance (in mm)"
-    //% blockId=ranger_dist_mm
     export function distance(): number {
         if (!initialized) {
             return 0
