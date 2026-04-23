@@ -30,6 +30,15 @@ namespace smarthome {
         S9 = 0b001000000000,
     }
 
+    export enum TouchPressType {
+        //% block="short"
+        //% block.loc.de="kurz"
+        Short = 1,
+        //% block="long"
+        //% block.loc.de="lang"
+        Long = 2,
+    }
+
     export enum PowerState {
         //% block="on"
         //% block.loc.de="an"
@@ -74,9 +83,12 @@ namespace smarthome {
 
     const MPR121_ADDRESS = 0x5a
     const TOUCH_STATUS_PAUSE_BETWEEN_READ = 50
+    const LONG_PRESS_DURATION_MS = 750
     const PRESENCE_DETECTED_ID = 2147
     const MPR121_TOUCH_SENSOR_TOUCHED_ID = 2148
     const MPR121_TOUCH_SENSOR_RELEASED_ID = 2149
+    const MPR121_TOUCH_SENSOR_SHORT_PRESSED_ID = 2150
+    const MPR121_TOUCH_SENSOR_LONG_PRESSED_ID = 2151
 
     interface TouchController {
         lastTouchStatus: number
@@ -90,6 +102,9 @@ namespace smarthome {
 
     let touchController: TouchController
     let presenceDetector: PresenceDetector
+    let touchPressed = [false, false, false, false, false, false, false, false, false, false, false, false]
+    let touchLongPressNotified = [false, false, false, false, false, false, false, false, false, false, false, false]
+    let touchPressGeneration = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
     interface SimxEnvelope {
         protocol: "smarthome"
@@ -181,6 +196,70 @@ namespace smarthome {
         return (1 << index) as TouchSwitch
     }
 
+    function touchPressTypeToEventId(pressType: TouchPressType): number {
+        if (pressType == TouchPressType.Long) {
+            return MPR121_TOUCH_SENSOR_LONG_PRESSED_ID
+        }
+
+        return MPR121_TOUCH_SENSOR_SHORT_PRESSED_ID
+    }
+
+    function updateWallLampState() {
+        lampStates[3] = false
+        for (let index = 0; index < wallLightColors.length; index++) {
+            if (wallLightColors[index] != 0x000000) {
+                lampStates[3] = true
+                return
+            }
+        }
+    }
+
+    function raiseTouchLongPress(sensor: TouchSwitch, sensorIndex: number, generation: number) {
+        if (touchPressed[sensorIndex] && touchPressGeneration[sensorIndex] == generation && !touchLongPressNotified[sensorIndex]) {
+            touchLongPressNotified[sensorIndex] = true
+            control.raiseEvent(MPR121_TOUCH_SENSOR_LONG_PRESSED_ID, sensor)
+            if (touchController) {
+                touchController.lastEventValue = sensor
+            }
+        }
+    }
+
+    function notifyTouchPressed(sensor: TouchSwitch) {
+        const sensorIndex = touchSwitchToIndex(sensor)
+        touchPressed[sensorIndex] = true
+        touchLongPressNotified[sensorIndex] = false
+        touchPressGeneration[sensorIndex] += 1
+        const generation = touchPressGeneration[sensorIndex]
+
+        control.raiseEvent(MPR121_TOUCH_SENSOR_TOUCHED_ID, sensor)
+        if (touchController) {
+            touchController.lastEventValue = sensor
+        }
+
+        control.inBackground(() => {
+            basic.pause(LONG_PRESS_DURATION_MS)
+            raiseTouchLongPress(sensor, sensorIndex, generation)
+        })
+    }
+
+    function notifyTouchReleased(sensor: TouchSwitch) {
+        const sensorIndex = touchSwitchToIndex(sensor)
+        if (!touchPressed[sensorIndex]) {
+            return
+        }
+
+        control.raiseEvent(MPR121_TOUCH_SENSOR_RELEASED_ID, sensor)
+        if (!touchLongPressNotified[sensorIndex]) {
+            control.raiseEvent(MPR121_TOUCH_SENSOR_SHORT_PRESSED_ID, sensor)
+        }
+
+        touchPressed[sensorIndex] = false
+        touchLongPressNotified[sensorIndex] = false
+        if (touchController) {
+            touchController.lastEventValue = sensor
+        }
+    }
+
     function handleSimxMessage(data: Buffer) {
         const message = JSON.parse(data.toString()) as SimxEnvelope
         if (!message || message.protocol != "smarthome" || message.version != SIMX_PROTOCOL_VERSION) {
@@ -208,19 +287,29 @@ namespace smarthome {
 
         const sensor = touchIndexToSwitch(input.payload.index)
 
-        if (input.payload.action == "press" || input.payload.action == "shortPress" || input.payload.action == "longPress") {
-            control.raiseEvent(MPR121_TOUCH_SENSOR_TOUCHED_ID, sensor)
+        if (input.payload.action == "shortPress") {
+            control.raiseEvent(MPR121_TOUCH_SENSOR_SHORT_PRESSED_ID, sensor)
             if (touchController) {
                 touchController.lastEventValue = sensor
             }
             return
         }
 
-        if (input.payload.action == "release") {
-            control.raiseEvent(MPR121_TOUCH_SENSOR_RELEASED_ID, sensor)
+        if (input.payload.action == "longPress") {
+            control.raiseEvent(MPR121_TOUCH_SENSOR_LONG_PRESSED_ID, sensor)
             if (touchController) {
                 touchController.lastEventValue = sensor
             }
+            return
+        }
+
+        if (input.payload.action == "press") {
+            notifyTouchPressed(sensor)
+            return
+        }
+
+        if (input.payload.action == "release") {
+            notifyTouchReleased(sensor)
         }
     }
 
@@ -407,6 +496,38 @@ namespace smarthome {
     }
 
     /**
+     * Sets one wall lamp LED to a color.
+     */
+    //% blockId=smarthome_set_wall_lamp_led_color
+    //% block="set wall lamp LED $led to $color"
+    //% block.loc.de="setze Wandlampe LED $led auf $color"
+    //% led.shadow=math_number led.defl=1 led.min=1 led.max=8
+    //% color.shadow="smarthome_color_number_picker" color.defl=0xffffff
+    //% inlineInputMode=inline
+    //% advanced=true
+    export function setWallLampLedColor(led: number, color: number) {
+        ensureLightsInitialized()
+
+        led = Math.round(led)
+        if (led < 1) {
+            led = 1
+        }
+        if (led > 8) {
+            led = 8
+        }
+
+        const wallLightIndex = led - 1
+        lightStrip.setBrightness(20)
+        lightStrip.setPixelColor(wallLightIndex + 3, color)
+        wallLightColors[wallLightIndex] = color
+        updateWallLampState()
+
+        lightStrip.show()
+        lightStrip.setBrightness(255)
+        syncSimulatorState()
+    }
+
+    /**
      * Switches a lamp to a color.
      */
     //% blockId=smarthome_show_lamp_color
@@ -433,6 +554,7 @@ namespace smarthome {
             wallLightColors[5] = color
             wallLightColors[6] = color
             wallLightColors[7] = color
+            updateWallLampState()
         }
 
         lightStrip.show()
@@ -463,9 +585,12 @@ namespace smarthome {
             wallLightColors[5] = 0x000000
             wallLightColors[6] = 0x000000
             wallLightColors[7] = 0x000000
+            updateWallLampState()
         }
 
-        lampStates[lamp] = false
+        if (lamp < 3) {
+            lampStates[lamp] = false
+        }
         lightStrip.show()
         syncSimulatorState()
     }
@@ -576,13 +701,11 @@ namespace smarthome {
 
             for (let touchSensorBit = 1; touchSensorBit <= 2048; touchSensorBit <<= 1) {
                 if ((touchSensorBit & touchStatus) !== 0 && (touchSensorBit & previousTouchStatus) === 0) {
-                    control.raiseEvent(MPR121_TOUCH_SENSOR_TOUCHED_ID, touchSensorBit)
-                    touchController.lastEventValue = touchSensorBit
+                    notifyTouchPressed(touchSensorBit as TouchSwitch)
                 }
 
                 if ((touchSensorBit & touchStatus) === 0 && (touchSensorBit & previousTouchStatus) !== 0) {
-                    control.raiseEvent(MPR121_TOUCH_SENSOR_RELEASED_ID, touchSensorBit)
-                    touchController.lastEventValue = touchSensorBit
+                    notifyTouchReleased(touchSensorBit as TouchSwitch)
                 }
             }
 
@@ -608,6 +731,23 @@ namespace smarthome {
     export function onTouchSensorTouched(sensor: TouchSwitch, handler: () => void) {
         initTouchController()
         control.onEvent(MPR121_TOUCH_SENSOR_TOUCHED_ID, sensor, () => {
+            setupContextAndNotify(handler)
+        })
+    }
+
+    /**
+     * Runs code when a specific touch switch is pressed short or long.
+     */
+    //% blockId=mpr121_touch_on_touch_sensor_pressed
+    //% block="when switch | %sensor | %pressType | pressed"
+    //% block.loc.de="wenn Schalter | %sensor | %pressType | gedrückt"
+    //% sensor.fieldEditor="gridpicker" sensor.fieldOptions.columns=3
+    //% sensor.fieldOptions.tooltips="false"
+    //% weight=64
+    //% advanced=true
+    export function onTouchSensorPressed(sensor: TouchSwitch, pressType: TouchPressType, handler: () => void) {
+        initTouchController()
+        control.onEvent(touchPressTypeToEventId(pressType), sensor, () => {
             setupContextAndNotify(handler)
         })
     }
