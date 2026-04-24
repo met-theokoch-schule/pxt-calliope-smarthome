@@ -67,8 +67,7 @@ interface RenderStyle {
 
 const MASK_OVERLAY_ALPHA = 0.85
 const WALL_LIGHT_OVERLAY_ALPHA = 0.6
-const SHUTTER_ANIMATION_DURATION_MS = 640
-const CEILING_LIGHT_2_CLOSED_MASK_DELAY_MS = 350
+const CEILING_LIGHT_2_CLOSED_MASK_DELAY_MS = 200
 
 const initialState: SmarthomeStatePayload = {
     lamps: [false, false, false, false],
