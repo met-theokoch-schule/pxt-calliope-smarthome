@@ -224,7 +224,7 @@ The extension is designed for the Calliope mini together with the smart home mod
 - Presence sensor: VL53L0X rangefinder
 
 ## Blocks
-![Blocks](https://github.com/met-theokoch-schule/pxt-calliope-smarthome/raw/master/assets/blocks.jpg "Smarthome blocks")
+![Blocks](https://github.com/met-theokoch-schule/pxt-calliope-smarthome/raw/master/assets/blocks_en.jpg "Smarthome blocks")
 
 ### Shades
 
