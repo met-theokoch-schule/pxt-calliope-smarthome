@@ -8,6 +8,7 @@ import outsideLightMaskImage from "./assets/smarthome/smarthome_a_color.png"
 import ceilingLight1Image from "./assets/smarthome/smarthome_d1.png"
 import ceilingLight1MaskImage from "./assets/smarthome/smarthome_d1_color.png"
 import ceilingLight2Image from "./assets/smarthome/smarthome_d2.png"
+import ceilingLight2OpenImage from "./assets/smarthome/smarthome_d2_offen.png"
 import ceilingLight2MaskImage from "./assets/smarthome/smarthome_d2_color.png"
 import shutterImage from "./assets/smarthome/smarthome_nur_rolladen.png"
 import wallLight1Image from "./assets/smarthome/smarthome_w1.png"
@@ -45,6 +46,8 @@ interface OverlayConfig {
 interface OverlayEntry {
     id: OverlayId
     image: HTMLImageElement
+    defaultImage: HTMLImageElement
+    alternateImage: HTMLImageElement | null
     maskImage: HTMLImageElement | null
     tintedCanvas: HTMLCanvasElement | null
     maskedCanvas: HTMLCanvasElement | null
@@ -64,6 +67,8 @@ interface RenderStyle {
 
 const MASK_OVERLAY_ALPHA = 0.85
 const WALL_LIGHT_OVERLAY_ALPHA = 0.6
+const SHUTTER_ANIMATION_DURATION_MS = 640
+const CEILING_LIGHT_2_CLOSED_MASK_DELAY_MS = 350
 
 const initialState: SmarthomeStatePayload = {
     lamps: [false, false, false, false],
@@ -249,6 +254,7 @@ function buildMaskedColorCanvas(canvasWidth: number, canvasHeight: number, maskI
 
 export function App() {
     const [deviceState, setDeviceState] = useState(initialState)
+    const [ceilingLight2UseOpenOverlay, setCeilingLight2UseOpenOverlay] = useState(initialState.shadesOpen)
     const sceneRef = useRef<HTMLDivElement>(null)
     const lightCanvasRef = useRef<HTMLCanvasElement>(null)
     const maskCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -265,6 +271,7 @@ export function App() {
                 configs.map(async (config) => ({
                     config,
                     image: await loadImage(config.src),
+                    alternateImage: config.id === "d2" ? await loadImage(ceilingLight2OpenImage) : null,
                     maskImage: config.maskSrc ? await loadImage(config.maskSrc) : null,
                 })),
             )
@@ -291,10 +298,12 @@ export function App() {
             maskCanvas.height = height
 
             const registry = new Map<OverlayId, OverlayEntry>()
-            images.forEach(({ config, image, maskImage }) => {
+            images.forEach(({ config, image, alternateImage, maskImage }) => {
                 registry.set(config.id, {
                     id: config.id,
                     image,
+                    defaultImage: image,
+                    alternateImage,
                     maskImage,
                     tintedCanvas: null,
                     maskedCanvas: null,
@@ -345,6 +354,21 @@ export function App() {
     }, [])
 
     useEffect(() => {
+        if (deviceState.shadesOpen) {
+            setCeilingLight2UseOpenOverlay(true)
+            return
+        }
+
+        const timeoutId = window.setTimeout(() => {
+            setCeilingLight2UseOpenOverlay(false)
+        }, CEILING_LIGHT_2_CLOSED_MASK_DELAY_MS)
+
+        return () => {
+            window.clearTimeout(timeoutId)
+        }
+    }, [deviceState.shadesOpen])
+
+    useEffect(() => {
         if (!assetsReady) {
             return
         }
@@ -379,6 +403,11 @@ export function App() {
             entry.state.active = active
             entry.state.color = colorNumberToHex(color)
         })
+
+        const ceilingLight2Entry = registry.get("d2")
+        if (ceilingLight2Entry?.alternateImage) {
+            ceilingLight2Entry.image = ceilingLight2UseOpenOverlay ? ceilingLight2Entry.alternateImage : ceilingLight2Entry.defaultImage
+        }
 
         wallLightColors.forEach((color, index) => {
             const entry = registry.get(`w${index + 1}` as OverlayId)
@@ -433,7 +462,7 @@ export function App() {
 
         lightContext.globalCompositeOperation = "source-over"
         maskContext.globalCompositeOperation = "source-over"
-    }, [assetsReady, deviceState])
+    }, [assetsReady, ceilingLight2UseOpenOverlay, deviceState])
 
     const sendSwitchMessage = (index: number, action: "press" | "release") => {
         postSmarthomeMessage({

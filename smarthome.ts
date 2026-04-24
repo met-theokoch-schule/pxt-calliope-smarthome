@@ -352,18 +352,18 @@ namespace smarthome {
     //% inlineInputMode=inline
     export function switchShades(state: ShadeState = ShadeState.Open) {
         if (state === ShadeState.Open) {
+            shadesOpen = true
+            syncSimulatorState()
             pins.servoWritePin(AnalogPin.C16, 0)
             basic.pause(800)
             pins.servoSetPulse(AnalogPin.C16, 0)
-            shadesOpen = true
         } else {
+            shadesOpen = false
+            syncSimulatorState()
             pins.servoWritePin(AnalogPin.C16, 180)
             basic.pause(800)
             pins.servoSetPulse(AnalogPin.C16, 0)
-            shadesOpen = false
         }
-
-        syncSimulatorState()
     }
 
     /**
