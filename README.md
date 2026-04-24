@@ -1,6 +1,11 @@
 # Calliope Smarthome
 
+![Smarthome](https://github.com/met-theokoch-schule/pxt-calliope-smarthome/raw/master/assets/smarthome.jpg "Smarthome Ansichten")
+
 Diese MakeCode-Erweiterung steuert ein Smarthome-Modell der Theo-Koch-Schule Grünberg. Sie stellt Blöcke für Rolladen, Klimaanlage, Lampen, Wandlampen-LEDs, Touch-Schalter und Präsenzmeldung bereit.
+
+* Bauanleitung: https://theokoch.schule/dw/smarthome/files/0/Bauanleitung-DW-Calliope-Smarthome.pdf
+* 3D-Dateien und Unterrichtsideen: https://theokoch.schule/dw/smarthome
 
 ## Als Erweiterung verwenden
 
@@ -23,6 +28,7 @@ Die Erweiterung ist für den Calliope mini mit dem Smarthome-Modell ausgelegt. E
 - Präsenzsensor: VL53L0X-Rangefinder
 
 ## Blöcke
+![Blöcke](https://github.com/met-theokoch-schule/pxt-calliope-smarthome/raw/master/assets/blocks.jpg "Smarthome Blöcke")
 
 ### Rolladen
 
@@ -189,6 +195,5 @@ MIT
 #### Metadata (used for search, rendering)
 
 * for PXT/calliopemini
-* for PXT/microbit
 
 <script src="https://makecode.com/gh-pages-embed.js"></script><script>makeCodeRender("{{ site.makecode.home_url }}", "{{ site.github.owner_name }}/{{ site.github.repository_name }}");</script>
