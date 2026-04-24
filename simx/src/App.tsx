@@ -8,7 +8,6 @@ import outsideLightMaskImage from "./assets/smarthome/smarthome_a_color.png"
 import ceilingLight1Image from "./assets/smarthome/smarthome_d1.png"
 import ceilingLight1MaskImage from "./assets/smarthome/smarthome_d1_color.png"
 import ceilingLight2Image from "./assets/smarthome/smarthome_d2.png"
-import ceilingLight2OpenImage from "./assets/smarthome/smarthome_d2_offen.png"
 import ceilingLight2MaskImage from "./assets/smarthome/smarthome_d2_color.png"
 import shutterImage from "./assets/smarthome/smarthome_nur_rolladen.png"
 import wallLight1Image from "./assets/smarthome/smarthome_w1.png"
@@ -46,8 +45,6 @@ interface OverlayConfig {
 interface OverlayEntry {
     id: OverlayId
     image: HTMLImageElement
-    defaultImage: HTMLImageElement
-    alternateImage: HTMLImageElement | null
     maskImage: HTMLImageElement | null
     tintedCanvas: HTMLCanvasElement | null
     maskedCanvas: HTMLCanvasElement | null
@@ -67,7 +64,7 @@ interface RenderStyle {
 
 const MASK_OVERLAY_ALPHA = 0.85
 const WALL_LIGHT_OVERLAY_ALPHA = 0.6
-const CEILING_LIGHT_2_CLOSED_MASK_DELAY_MS = 200
+const SHUTTER_TRANSITION_DURATION_MS = 700
 
 const initialState: SmarthomeStatePayload = {
     lamps: [false, false, false, false],
@@ -251,10 +248,93 @@ function buildMaskedColorCanvas(canvasWidth: number, canvasHeight: number, maskI
     return offscreen
 }
 
+function buildVisibilityClippedCanvas(
+    canvasWidth: number,
+    canvasHeight: number,
+    sourceCanvas: HTMLCanvasElement,
+    visibilityCanvas: HTMLCanvasElement,
+) {
+    const offscreen = document.createElement("canvas")
+    offscreen.width = canvasWidth
+    offscreen.height = canvasHeight
+
+    const context = offscreen.getContext("2d")
+    if (!context) {
+        return offscreen
+    }
+
+    context.clearRect(0, 0, offscreen.width, offscreen.height)
+    context.drawImage(sourceCanvas, 0, 0)
+    context.globalCompositeOperation = "destination-in"
+    context.drawImage(visibilityCanvas, 0, 0)
+    context.globalCompositeOperation = "source-over"
+
+    return offscreen
+}
+
+function buildForegroundVisibilityCanvas(
+    canvasWidth: number,
+    canvasHeight: number,
+    baseImageElement: HTMLImageElement,
+    shutterImageElement: HTMLImageElement | null,
+) {
+    const offscreen = document.createElement("canvas")
+    offscreen.width = canvasWidth
+    offscreen.height = canvasHeight
+
+    const context = offscreen.getContext("2d")
+    if (!context) {
+        return offscreen
+    }
+
+    context.clearRect(0, 0, offscreen.width, offscreen.height)
+    context.drawImage(baseImageElement, 0, 0, offscreen.width, offscreen.height)
+
+    if (!shutterImageElement) {
+        return offscreen
+    }
+
+    const computedStyle = window.getComputedStyle(shutterImageElement)
+    const opacity = Number.parseFloat(computedStyle.opacity || "1")
+    if (opacity <= 0) {
+        return offscreen
+    }
+
+    const shutterBounds = shutterImageElement.getBoundingClientRect()
+    if (!shutterBounds.width || !shutterBounds.height) {
+        return offscreen
+    }
+
+    const scale = offscreen.width / shutterBounds.width
+
+    context.save()
+    context.globalAlpha = opacity
+
+    const transform = computedStyle.transform
+    if (transform && transform !== "none") {
+        const matrix = new DOMMatrixReadOnly(transform)
+        context.transform(
+            matrix.a,
+            matrix.b,
+            matrix.c,
+            matrix.d,
+            matrix.e * scale,
+            matrix.f * scale,
+        )
+    }
+
+    context.drawImage(shutterImageElement, 0, 0, offscreen.width, offscreen.height)
+    context.restore()
+
+    return offscreen
+}
+
 export function App() {
     const [deviceState, setDeviceState] = useState(initialState)
-    const [ceilingLight2UseOpenOverlay, setCeilingLight2UseOpenOverlay] = useState(initialState.shadesOpen)
+    const [sceneAnimationTick, setSceneAnimationTick] = useState(0)
     const sceneRef = useRef<HTMLDivElement>(null)
+    const baseLayerRef = useRef<HTMLImageElement>(null)
+    const shutterLayerRef = useRef<HTMLImageElement>(null)
     const lightCanvasRef = useRef<HTMLCanvasElement>(null)
     const maskCanvasRef = useRef<HTMLCanvasElement>(null)
     const overlayRegistryRef = useRef(new Map<OverlayId, OverlayEntry>())
@@ -270,7 +350,6 @@ export function App() {
                 configs.map(async (config) => ({
                     config,
                     image: await loadImage(config.src),
-                    alternateImage: config.id === "d2" ? await loadImage(ceilingLight2OpenImage) : null,
                     maskImage: config.maskSrc ? await loadImage(config.maskSrc) : null,
                 })),
             )
@@ -297,12 +376,10 @@ export function App() {
             maskCanvas.height = height
 
             const registry = new Map<OverlayId, OverlayEntry>()
-            images.forEach(({ config, image, alternateImage, maskImage }) => {
+            images.forEach(({ config, image, maskImage }) => {
                 registry.set(config.id, {
                     id: config.id,
                     image,
-                    defaultImage: image,
-                    alternateImage,
                     maskImage,
                     tintedCanvas: null,
                     maskedCanvas: null,
@@ -353,17 +430,20 @@ export function App() {
     }, [])
 
     useEffect(() => {
-        if (deviceState.shadesOpen) {
-            setCeilingLight2UseOpenOverlay(true)
-            return
+        let animationFrameId = 0
+        const animationStart = performance.now()
+
+        const updateFrame = (timestamp: number) => {
+            setSceneAnimationTick(timestamp)
+            if (timestamp - animationStart < SHUTTER_TRANSITION_DURATION_MS) {
+                animationFrameId = window.requestAnimationFrame(updateFrame)
+            }
         }
 
-        const timeoutId = window.setTimeout(() => {
-            setCeilingLight2UseOpenOverlay(false)
-        }, CEILING_LIGHT_2_CLOSED_MASK_DELAY_MS)
+        animationFrameId = window.requestAnimationFrame(updateFrame)
 
         return () => {
-            window.clearTimeout(timeoutId)
+            window.cancelAnimationFrame(animationFrameId)
         }
     }, [deviceState.shadesOpen])
 
@@ -384,6 +464,9 @@ export function App() {
             return
         }
 
+        const baseLayer = baseLayerRef.current
+        const shutterLayer = shutterLayerRef.current
+
         const registry = overlayRegistryRef.current
         const lampColors = deviceState.lampColors ?? initialState.lampColors
         const wallLightColors = deviceState.wallLightColors ?? initialState.wallLightColors
@@ -402,11 +485,6 @@ export function App() {
             entry.state.active = active
             entry.state.color = colorNumberToHex(color)
         })
-
-        const ceilingLight2Entry = registry.get("d2")
-        if (ceilingLight2Entry?.alternateImage) {
-            ceilingLight2Entry.image = ceilingLight2UseOpenOverlay ? ceilingLight2Entry.alternateImage : ceilingLight2Entry.defaultImage
-        }
 
         wallLightColors.forEach((color, index) => {
             const entry = registry.get(`w${index + 1}` as OverlayId)
@@ -427,6 +505,11 @@ export function App() {
         lightContext.clearRect(0, 0, lightCanvas.width, lightCanvas.height)
         maskContext.clearRect(0, 0, maskCanvas.width, maskCanvas.height)
 
+        const ceilingLight2VisibilityCanvas =
+            baseLayer && shutterLayer && registry.get("d2")?.state.active
+                ? buildForegroundVisibilityCanvas(lightCanvas.width, lightCanvas.height, baseLayer, shutterLayer)
+                : null
+
         for (const entry of registry.values()) {
             if (!entry.state.active) {
                 continue
@@ -440,9 +523,14 @@ export function App() {
                 entry.tintKey = tintKey
             }
 
+            const tintedCanvas =
+                entry.id === "d2" && ceilingLight2VisibilityCanvas
+                    ? buildVisibilityClippedCanvas(lightCanvas.width, lightCanvas.height, entry.tintedCanvas, ceilingLight2VisibilityCanvas)
+                    : entry.tintedCanvas
+
             lightContext.globalAlpha = renderStyle.lightAlpha
             lightContext.globalCompositeOperation = "lighter"
-            lightContext.drawImage(entry.tintedCanvas, 0, 0)
+            lightContext.drawImage(tintedCanvas, 0, 0)
             lightContext.globalAlpha = 1
 
             if (entry.maskImage) {
@@ -452,16 +540,21 @@ export function App() {
                     entry.maskKey = maskKey
                 }
 
+                const maskedCanvas =
+                    entry.id === "d2" && ceilingLight2VisibilityCanvas
+                        ? buildVisibilityClippedCanvas(maskCanvas.width, maskCanvas.height, entry.maskedCanvas, ceilingLight2VisibilityCanvas)
+                        : entry.maskedCanvas
+
                 maskContext.globalAlpha = renderStyle.maskAlpha
                 maskContext.globalCompositeOperation = "source-over"
-                maskContext.drawImage(entry.maskedCanvas, 0, 0)
+                maskContext.drawImage(maskedCanvas, 0, 0)
                 maskContext.globalAlpha = 1
             }
         }
 
         lightContext.globalCompositeOperation = "source-over"
         maskContext.globalCompositeOperation = "source-over"
-    }, [assetsReady, ceilingLight2UseOpenOverlay, deviceState])
+    }, [assetsReady, deviceState, sceneAnimationTick])
 
     const sendSwitchMessage = (index: number, action: "press" | "release") => {
         postSmarthomeMessage({
@@ -493,11 +586,12 @@ export function App() {
             <div className="scene-shell">
                 <div ref={sceneRef} className="scene" aria-label="Smarthome visualisation">
                     <img
+                        ref={shutterLayerRef}
                         className={`scene-layer scene-layer-rolladen${deviceState.shadesOpen ? " is-visible" : ""}`}
                         src={shutterImage}
                         alt=""
                     />
-                    <img className="scene-layer scene-layer-base" src={houseBaseImage} alt="Smarthome model" />
+                    <img ref={baseLayerRef} className="scene-layer scene-layer-base" src={houseBaseImage} alt="Smarthome model" />
                     <canvas ref={lightCanvasRef} className="scene-overlays scene-overlays-light" aria-hidden="true" />
                     <canvas ref={maskCanvasRef} className="scene-overlays scene-overlays-mask" aria-hidden="true" />
                 </div>
